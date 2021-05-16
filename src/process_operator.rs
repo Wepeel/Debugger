@@ -11,6 +11,12 @@ pub trait ProcessOperator {
         data: types::ConstAddressType,
         length: usize,
     );
+    unsafe fn read_process(
+        &self,
+        address: types::ConstAddressType,
+        data: types::AddressType,
+        length: usize,
+    );
     /// Return new instance of [`ProcessOperator`]
     unsafe fn new(pid: Pid) -> Self;
 }
@@ -19,7 +25,7 @@ pub unsafe fn default_process_operator(pid: Pid) -> impl ProcessOperator {
     #[cfg(windows)]
     return windows::WindowsProcessOperator::new(pid);
     #[cfg(linux)]
-    return linux::LinuxProcecssOperator::default();
+    return linux::LinuxProcessOperator::default();
 }
 
 #[cfg(windows)]
@@ -61,6 +67,21 @@ pub mod windows {
                 &mut number_bytes_written,
             );
         }
+        unsafe fn read_process(
+            &self,
+            address: types::ConstAddressType,
+            data: types::AddressType,
+            length: usize,
+        ) {
+            let mut number_bytes_read: usize = 0;
+            memoryapi::ReadProcessMemory(
+                self.handle,
+                address,
+                data,
+                length,
+                &mut number_bytes_read,
+            );
+        }
         unsafe fn new(pid: super::Pid) -> Self {
             let handle = processthreadsapi::OpenProcess(
                 PROCESS_VM_READ | PROCESS_VM_WRITE,
@@ -74,9 +95,9 @@ pub mod windows {
 
 #[cfg(linux)]
 pub mod linux {
-    pub struct LinuxProcecssOperator {}
+    pub struct LinuxProcessOperator {}
 
-    impl ProcessOperator for LinuxProcecssOperator {
+    impl ProcessOperator for LinuxProcessOperator {
         fn write_process(&self, address: usize) {}
     }
 }
