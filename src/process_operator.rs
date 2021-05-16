@@ -1,5 +1,24 @@
 type Pid = u32;
 
+use std::error::Error;
+
+#[derive(Debug)]
+pub struct ProcessOperatorError {}
+
+impl Error for ProcessOperatorError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        return None;
+    }
+}
+
+impl std::fmt::Display for ProcessOperatorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        return "error with process operations".fmt(f);
+    }
+}
+
+type Result<T> = std::result::Result<T, ProcessOperatorError>;
+
 // TODO: Return result from WriteProcess
 
 /// `ProcessOperator` allows to read and write from a process
@@ -10,13 +29,13 @@ pub trait ProcessOperator {
         address: types::AddressType,
         data: types::ConstAddressType,
         length: usize,
-    );
+    ) -> self::Result<()>;
     unsafe fn read_process(
         &self,
         address: types::ConstAddressType,
         data: types::AddressType,
         length: usize,
-    );
+    ) -> self::Result<()>;
     /// Return new instance of [`ProcessOperator`]
     unsafe fn new(pid: Pid) -> Self;
 }
@@ -38,6 +57,7 @@ pub mod types {
 #[cfg(windows)]
 pub mod windows {
     use winapi::shared::minwindef;
+    use winapi::um::errhandlingapi;
     use winapi::um::memoryapi;
     use winapi::um::processthreadsapi;
     use winapi::um::winnt;
@@ -57,30 +77,44 @@ pub mod windows {
             address: types::AddressType,
             data: types::ConstAddressType,
             length: usize,
-        ) {
+        ) -> super::Result<()> {
             let mut number_bytes_written: usize = 0;
-            memoryapi::WriteProcessMemory(
+            let success = memoryapi::WriteProcessMemory(
                 self.handle,
                 address,
                 data,
                 length,
                 &mut number_bytes_written,
             );
+
+            if success == minwindef::FALSE {
+                let err_code = errhandlingapi::GetLastError();
+                //return Err(err_code);
+            }
+
+            return Ok(());
         }
         unsafe fn read_process(
             &self,
             address: types::ConstAddressType,
             data: types::AddressType,
             length: usize,
-        ) {
+        ) -> super::Result<()> {
             let mut number_bytes_read: usize = 0;
-            memoryapi::ReadProcessMemory(
+            let success = memoryapi::ReadProcessMemory(
                 self.handle,
                 address,
                 data,
                 length,
                 &mut number_bytes_read,
             );
+
+            if success == minwindef::FALSE {
+                let err_code = errhandlingapi::GetLastError();
+                //return Err(err_code);
+            }
+
+            return Ok(());
         }
         unsafe fn new(pid: super::Pid) -> Self {
             let handle = processthreadsapi::OpenProcess(
