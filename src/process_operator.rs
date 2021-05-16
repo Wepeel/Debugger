@@ -1,9 +1,16 @@
 type Pid = u32;
-
 use std::error::Error;
 
 #[derive(Debug)]
-pub struct ProcessOperatorError {}
+pub struct ProcessOperatorError {
+    err_code: u32,
+}
+
+impl ProcessOperatorError {
+    pub fn new(errcode: types::ErrorCode) -> Self {
+        return ProcessOperatorError { err_code: errcode };
+    }
+}
 
 impl Error for ProcessOperatorError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
@@ -52,6 +59,8 @@ pub mod types {
     use winapi::shared::minwindef;
     pub type AddressType = minwindef::LPVOID;
     pub type ConstAddressType = minwindef::LPCVOID;
+
+    pub type ErrorCode = minwindef::DWORD;
 }
 
 #[cfg(windows)]
@@ -89,7 +98,7 @@ pub mod windows {
 
             if success == minwindef::FALSE {
                 let err_code = errhandlingapi::GetLastError();
-                //return Err(err_code);
+                return Err(super::ProcessOperatorError::new(err_code));
             }
 
             return Ok(());
@@ -111,7 +120,7 @@ pub mod windows {
 
             if success == minwindef::FALSE {
                 let err_code = errhandlingapi::GetLastError();
-                //return Err(err_code);
+                return Err(super::ProcessOperatorError::new(err_code));
             }
 
             return Ok(());
